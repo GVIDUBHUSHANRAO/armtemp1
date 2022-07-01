@@ -1,0 +1,29 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "pipname": {
+            "type": "string"
+        }
+    },
+    "resources": [
+        {
+            "name": "[parameters('pipname')]",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "apiVersion": "2020-11-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "publicIPAllocationMethod": "Static",
+                "dnsSettings": {
+                    "domainNameLabel": "vidudns1"
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "PublicIP": {
+            "type": "string",
+            "value": "[reference(parameters('pipname')).ipAddress]"
+        }
+    }
+}

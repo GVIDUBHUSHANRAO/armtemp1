@@ -1,0 +1,75 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "sqlserver": {
+            "type": "string",
+            "metadata": {
+                "description": "description"
+            }
+        },
+        "passd": {
+            "type": "securestring",
+            "metadata": {
+                "description": "description"
+            }
+        },
+        "sqldb": {
+            "type": "string",
+            "metadata": {
+                "description": "description"
+            }
+        }
+    },
+    "functions": [],
+    "variables": {},
+    "resources": [
+        {
+            "name": "[parameters('sqlserver')]",
+            "type": "Microsoft.Sql/servers",
+            "apiVersion": "2014-04-01",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "[parameters('sqlserver')]"
+            },
+            "properties": {
+                "administratorLogin": "vidubhushan",
+                "administratorLoginPassword": "[parameters('passd')]"
+            },
+            "resources": [
+                {
+                    "type": "firewallRules",
+                    "apiVersion": "2014-04-01",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Sql/servers', parameters('sqlserver'))]"
+                    ],
+                    "location": "[resourceGroup().location]",
+                    "name": "AllowAllWindowsAzureIps",
+                    "properties": {
+                        "startIpAddress": "0.0.0.0",
+                        "endIpAddress": "0.0.0.0"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "[concat(parameters('sqlserver'),'/',parameters('sqldb'))]",
+            "type": "Microsoft.Sql/servers/databases",
+            "apiVersion": "2014-04-01",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "[parameters('sqldb')]"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('sqlserver'))]"
+            ],
+            "properties": {
+                "collation": "SQL_Latin1_General_CP1_CI_AS",
+                "edition": "Basic",
+                "maxSizeBytes": "1073741824",
+                "requestedServiceObjectiveName": "Basic"
+            }
+        }
+    ],
+    "outputs": {}
+}
