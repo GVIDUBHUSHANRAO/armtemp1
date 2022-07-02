@@ -3,13 +3,13 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "sqlserver": {
-            "value": "viduserver1" // TODO: Fill in parameter value
+            "value": "viduserver1"
         },
         "passd": {
-            "value": "Vidu@123" // TODO: Fill in parameter value
+            "value": "Vidu@123"
         },
         "sqldb": {
-            "value": "vidusqldb1" // TODO: Fill in parameter value
+            "value": "vidusqldb1"
         }
     }
 }

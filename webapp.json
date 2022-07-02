@@ -1,0 +1,62 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {},
+    "functions": [],
+    "variables": {},
+    "resources": [
+        {
+            "name": "ASP-US",
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2020-12-01",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "S1",
+                "capacity": 1
+            },
+            "properties": {
+                "name": "ASP-US"
+            }
+        },
+        {
+            "name": "Webapp-Customer",
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2020-12-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            ],
+            "properties": {
+                "name": "Webapp-Customer",
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            }
+        },
+        {
+            "name": "Webapp-APIserver",
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2020-12-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            ],
+            "properties": {
+                "name": "Webapp-APIserver",
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            }
+        },
+        {
+            "name": "Webapp-Admins",
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2020-12-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            ],
+            "properties": {
+                "name": "Webapp-Admins",
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            }
+        }
+    ],
+    "outputs": {}
+}
