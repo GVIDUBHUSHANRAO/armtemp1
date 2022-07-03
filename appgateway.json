@@ -48,6 +48,58 @@
             }
         },
         {
+            "name": "ASP-US",
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2020-12-01",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "S1",
+                "capacity": 1
+            },
+            "properties": {
+                "name": "ASP-US"
+            }
+        },
+        {
+            "name": "Webapp-Customer",
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2020-12-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            ],
+            "properties": {
+                "name": "Webapp-Customer",
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            }
+        },
+        {
+            "name": "Webapp-APIserver",
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2020-12-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            ],
+            "properties": {
+                "name": "Webapp-APIserver",
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            }
+        },
+        {
+            "name": "Webapp-Admins",
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2020-12-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            ],
+            "properties": {
+                "name": "Webapp-Admins",
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            }
+        },
+        {
             "type": "Microsoft.Network/applicationGateways",
             "apiVersion": "2020-03-01",
             "name": "appgatewayUS",
@@ -102,7 +154,19 @@
                 "backendAddressPools": [
                     {
                         "name": "BackendPool-1",
-                        "properties": {}
+                        "properties": {
+                            "backendAddresses": [
+                                {
+                                    "fqdn": "Webapp-Customer.azurewebsites.net"
+                                },
+                                {
+                                    "fqdn": "Webapp-APIserver.azurewebsites.net"
+                                },
+                                {
+                                    "fqdn": "Webapp-Admins.azurewebsites.net"
+                                }
+                            ]
+                        }
                     }
                 ],
                 "backendHttpSettingsCollection": [
@@ -111,7 +175,26 @@
                         "properties": {
                             "Port": 80,
                             "Protocol": "Http",
-                            "CookieBasedAffinity": "Disabled"
+                            "CookieBasedAffinity": "Disabled",
+                            "pickHostNameFromBackendAddress": true
+                        }
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "probe1",
+                        "properties": {
+                            "protocol": "Http",
+                            "pickHostNameFromBackendHttpSettings": true,
+                            "path": "/",
+                            "interval": 5,
+                            "timeout": 30,
+                            "unhealthyThreshold":3,
+                            "backendHttpSettings":[
+                                {
+                                    "id": "[resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection/', 'appgatewayUS', 'HttpSetting-1')]"
+                                }
+                            ]
                         }
                     }
                 ],
