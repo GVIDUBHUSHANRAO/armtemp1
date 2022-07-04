@@ -1,0 +1,378 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {},
+    "functions": [],
+    "variables": {},
+    "resources": [
+        {
+            "name": "vnet-1",
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2020-11-01",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "vnet-1"
+            },
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "10.0.0.0/16"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "appGatewaySubnet",
+                        "properties": {
+                            "addressPrefix": "10.0.0.0/24"
+                        }
+                    },
+                    {
+                        "name": "subnetForVnetIntegration",
+                        "properties": {
+                            "addressPrefix": "10.0.1.0/24",
+                             "delegations": [
+                                {
+                                    "name": "delegation",
+                                    "properties": {
+                                        "serviceName": "Microsoft.Web/serverFarms"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "FEPublicIP",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "apiVersion": "2020-11-01",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Static"
+            }
+        },
+        {
+            "name": "ASP-US",
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2020-12-01",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "S1",
+                "capacity": 1
+            },
+            "properties": {
+                "name": "ASP-US"
+            }
+        },
+        {
+            "name": "Webapp-Customer",
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2020-12-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            ],
+            "properties": {
+                "name": "Webapp-Customer",
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            }
+        },
+        {
+            "name": "Webapp-APIserver",
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2020-12-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            ],
+            "properties": {
+                "name": "Webapp-APIserver",
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]"
+            }
+        },
+        {
+            "name": "Webapp-Admins",
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2020-12-01",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]",
+                "[resourceId('Microsoft.Network/virtualNetworks', 'vnet-1')]"
+            ],
+            "properties": {
+                "name": "Webapp-Admins",
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', 'ASP-US')]",
+                "virtualNetworkSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'vnet-1', 'subnetForVnetIntegration')]"
+            }
+        },
+        {
+            "type": "Microsoft.Network/applicationGateways",
+            "apiVersion": "2020-03-01",
+            "name": "appgatewayUS",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', 'vnet-1')]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', 'FEPublicIP')]"
+            ],
+            "properties": {
+                "sku": {
+                    "name": "WAF_v2",
+                    "tier": "WAF_V2"
+                },
+                "webApplicationFirewallConfiguration": {
+                    "enabled": true,
+                    "firewallMode": "Prevention",
+                    "ruleSetType": "OWASP",
+                    "ruleSetVersion": "3.0",
+                    "requestBodyCheck": true,
+                    "state":"Enabled"
+                },
+                "autoscaleConfiguration": {
+                    "minCapacity": 1,
+                    "maxCapacity": 2
+                },
+                "gatewayIPConfigurations": [
+                    {
+                        "name": "appGatewayIpConfigname",
+                        "properties": {
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'vnet-1', 'appGatewaySubnet')]"
+                            }
+                        }
+                    }
+                ],
+                "frontendIPConfigurations": [
+                    {
+                        "name": "appGatewayFrontendIP",
+                        "properties": {
+                            "PublicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', 'FEPublicIP')]"
+                            }
+                        }
+                    }
+                ],
+                "frontendPorts": [
+                    {
+                        "name": "appGatewayFrontendPort",
+                        "properties": {
+                            "Port": 80
+                        }
+                    }
+                ],
+                "backendAddressPools": [
+                    {
+                        "name": "BackendPool-CUS",
+                        "properties": {
+                            "backendAddresses": [
+                                {
+                                    "fqdn": "webapp-customer.azurewebsites.net"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "BackendPool-ADM",
+                        "properties": {
+                            "backendAddresses": [
+                                {
+                                    "fqdn": "webapp-admins.azurewebsites.net"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "BackendPool-API",
+                        "properties": {
+                            "backendAddresses": [
+                                {
+                                    "fqdn": "webapp-apiserver.azurewebsites.net"
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "backendHttpSettingsCollection": [
+                    {
+                        "name": "HttpSetting-CUS",
+                        "properties": {
+                            "Port": 80,
+                            "Protocol": "Http",
+                            "CookieBasedAffinity": "Disabled",
+                            "pickHostNameFromBackendAddress": true,
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/probes/', 'appgatewayUS', 'probe-CUS')]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "HttpSetting-ADM",
+                        "properties": {
+                            "Port": 80,
+                            "Protocol": "Http",
+                            "CookieBasedAffinity": "Disabled",
+                            "pickHostNameFromBackendAddress": true,
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/probes/', 'appgatewayUS', 'probe-ADM')]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "HttpSetting-API",
+                        "properties": {
+                            "Port": 80,
+                            "Protocol": "Http",
+                            "CookieBasedAffinity": "Disabled",
+                            "pickHostNameFromBackendAddress": true,
+                            "probe": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/probes/', 'appgatewayUS', 'probe-API')]"
+                            }
+                        }
+                    }
+                ],
+                "probes": [
+                    {
+                        "name": "probe-CUS",
+                        "properties": {
+                            "protocol": "Http",
+                            "pickHostNameFromBackendHttpSettings": true,
+                            "path": "/",
+                            "interval": 5,
+                            "timeout": 30,
+                            "unhealthyThreshold":3,
+                            "backendHttpSettings":[
+                                {
+                                    "id": "[resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection/', 'appgatewayUS', 'HttpSetting-CUS')]"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "probe-ADM",
+                        "properties": {
+                            "protocol": "Http",
+                            "pickHostNameFromBackendHttpSettings": true,
+                            "path": "/",
+                            "interval": 5,
+                            "timeout": 30,
+                            "unhealthyThreshold":3,
+                            "backendHttpSettings":[
+                                {
+                                    "id": "[resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection/', 'appgatewayUS', 'HttpSetting-ADM')]"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "probe-API",
+                        "properties": {
+                            "protocol": "Http",
+                            "pickHostNameFromBackendHttpSettings": true,
+                            "path": "/",
+                            "interval": 5,
+                            "timeout": 30,
+                            "unhealthyThreshold":3,
+                            "backendHttpSettings":[
+                                {
+                                    "id": "[resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection/', 'appgatewayUS', 'HttpSetting-API')]"
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "httpListeners": [
+                    {
+                        "name": "HttpListener-CUS",
+                        "properties": {
+                            "FrontendIPConfiguration": {
+                                "Id": "[resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', 'appgatewayUS', 'appGatewayFrontendIP')]"
+                            },
+                            "FrontendPort": {
+                                "Id": "[resourceId('Microsoft.Network/applicationGateways/frontendPorts',  'appgatewayUS', 'appGatewayFrontendPort')]"
+                            },
+                            "Protocol": "Http",
+                            "hostName": "webapp-customer.azurewebsites.net"
+                        }
+                    },
+                    {
+                        "name": "HttpListener-ADM",
+                        "properties": {
+                            "FrontendIPConfiguration": {
+                                "Id": "[resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', 'appgatewayUS', 'appGatewayFrontendIP')]"
+                            },
+                            "FrontendPort": {
+                                "Id": "[resourceId('Microsoft.Network/applicationGateways/frontendPorts',  'appgatewayUS', 'appGatewayFrontendPort')]"
+                            },
+                            "Protocol": "Http",
+                            "hostName": "webapp-admins.azurewebsites.net"
+                        }
+                    },
+                    {
+                        "name": "HttpListener-API",
+                        "properties": {
+                            "FrontendIPConfiguration": {
+                                "Id": "[resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', 'appgatewayUS', 'appGatewayFrontendIP')]"
+                            },
+                            "FrontendPort": {
+                                "Id": "[resourceId('Microsoft.Network/applicationGateways/frontendPorts',  'appgatewayUS', 'appGatewayFrontendPort')]"
+                            },
+                            "Protocol": "Http",
+                            "hostName": "webapp-apiserver.azurewebsites.net"
+                        }
+                    }
+                ],
+                "requestRoutingRules": [
+                    {
+                        "Name": "httprule-CUS",
+                        "properties": {
+                            "RuleType": "Basic",
+                            "httpListener": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/httpListeners', 'appgatewayUS', 'HttpListener-CUS')]"
+                            },
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/backendAddressPools', 'appgatewayUS', 'BackendPool-CUS')]"
+                            },
+                            "backendHttpSettings": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection', 'appgatewayUS', 'HttpSetting-CUS')]"
+                            }
+                        }
+                    },
+                    {
+                        "Name": "httprule-ADM",
+                        "properties": {
+                            "RuleType": "Basic",
+                            "httpListener": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/httpListeners', 'appgatewayUS', 'HttpListener-ADM')]"
+                            },
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/backendAddressPools', 'appgatewayUS', 'BackendPool-ADM')]"
+                            },
+                            "backendHttpSettings": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection', 'appgatewayUS', 'HttpSetting-ADM')]"
+                            }
+                        }
+                    },
+                    {
+                        "Name": "httprule-API",
+                        "properties": {
+                            "RuleType": "Basic",
+                            "httpListener": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/httpListeners', 'appgatewayUS', 'HttpListener-API')]"
+                            },
+                            "backendAddressPool": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/backendAddressPools', 'appgatewayUS', 'BackendPool-API')]"
+                            },
+                            "backendHttpSettings": {
+                                "id": "[resourceId('Microsoft.Network/applicationGateways/backendHttpSettingsCollection', 'appgatewayUS', 'HttpSetting-API')]"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+    "outputs": {}
+}
