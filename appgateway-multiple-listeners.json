@@ -128,8 +128,7 @@
                     "firewallMode": "Prevention",
                     "ruleSetType": "OWASP",
                     "ruleSetVersion": "3.0",
-                    "requestBodyCheck": true,
-                    "state":"Enabled"
+                    "requestBodyCheck": true
                 },
                 "autoscaleConfiguration": {
                     "minCapacity": 1,
